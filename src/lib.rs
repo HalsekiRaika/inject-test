@@ -111,3 +111,55 @@ pub mod interactor {
         }
     }
 }
+
+pub mod mixin {
+    use crate::{DependOnRepository, DataRepository, Pool, Repository};
+
+    pub trait CreateUserService<T>: 'static + Sync + Send 
+        where T: ?Sized + 'static + Sync + Send
+    {
+        fn create(this: &T, id: String) -> Result<u64, u64>;
+    }
+
+    pub trait MixinCreateUserService: 'static + Sync + Send 
+        + DependOnRepository
+    {
+        type Definite: CreateUserService<Self>;
+
+        fn create(&self, id: String) -> Result<u64, u64> {
+            Self::Definite::create(self, id)
+        }
+    }
+
+    pub struct UserService;
+
+    impl<T> CreateUserService<T> for UserService
+        where T: DependOnRepository
+    {
+        fn create(this: &T, _id: String) -> Result<u64, u64> {
+            this.repository().create()?;
+            Ok(1_u64)
+        }
+    }
+
+    pub struct MixinHandler {
+        repo: DataRepository
+    }
+
+    impl MixinHandler {
+        pub fn init() -> Self {
+            Self { repo: DataRepository(Pool) }
+        }
+    }
+
+    impl DependOnRepository for MixinHandler {
+        type Repository = DataRepository;
+        fn repository(&self) -> &Self::Repository {
+            &self.repo
+        }
+    }
+
+    impl MixinCreateUserService for MixinHandler {
+        type Definite = UserService;
+    }
+}

@@ -1,4 +1,5 @@
 use criterion::{Criterion, criterion_main, criterion_group, BenchmarkId};
+use inject_test::mixin::{MixinHandler, MixinCreateUserService};
 
 fn bench_simple(c: &mut Criterion) {
     use inject_test::simple::{SimpleHandler, DependOnCreateSimpleDataService, CreateSimpleDataService};
@@ -24,5 +25,15 @@ fn bench_interactor(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_simple, bench_interactor);
+fn bench_mixin(c: &mut Criterion) {
+    c.bench_function("mixin handler init", |b| { b.iter(|| { MixinHandler::init() }) });
+
+    let handler = MixinHandler::init();
+
+    c.bench_with_input(BenchmarkId::new("mixin handler function", "mixin"), &handler, |b, i| {
+        b.iter(|| { MixinCreateUserService::create(i, "string".to_owned()) })
+    });
+}
+
+criterion_group!(benches, bench_simple, bench_interactor, bench_mixin);
 criterion_main!(benches);
